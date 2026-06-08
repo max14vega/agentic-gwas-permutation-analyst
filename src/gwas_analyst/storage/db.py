@@ -73,7 +73,7 @@ def run_readonly_query(con: duckdb.DuckDBPyConnection, sql: str) -> list[dict[st
 # -- Canonical analytical queries -------------------------------------------------
 
 def pooled_null_distribution(
-    con: duckdb.DuckDBPyConnection, column: str = "lct_pvalue"
+    con: duckdb.DuckDBPyConnection, column: str = "lrt_pvalue"
 ) -> dict[str, Any]:
     """Summary stats of `column` pooled across every permutation -- the basis
     for an empirical null distribution / permutation-derived significance threshold."""
@@ -95,7 +95,7 @@ def pooled_null_distribution(
 
 def top_hits(
     con: duckdb.DuckDBPyConnection,
-    column: str = "lct_pvalue",
+    column: str = "lrt_pvalue",
     limit: int = 20,
     ascending: bool = True,
 ) -> list[dict[str, Any]]:
@@ -105,7 +105,7 @@ def top_hits(
     return run_readonly_query(con, sql)
 
 
-def per_run_summary(con: duckdb.DuckDBPyConnection, column: str = "lct_pvalue") -> list[dict[str, Any]]:
+def per_run_summary(con: duckdb.DuckDBPyConnection, column: str = "lrt_pvalue") -> list[dict[str, Any]]:
     """Aggregate `column` stats grouped by source permutation file."""
     sql = f"""
         SELECT

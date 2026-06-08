@@ -1,36 +1,55 @@
 """Column schema for permutation result rows.
 
-Seven columns are confirmed by the user; the remaining five are placeholders
-until the permutation algorithm spec is finalized. Update PLACEHOLDER_COLUMNS
-in place when the real names/types are known -- nothing else needs to change.
+Cross-checked against the real pyseer LMM-mode output header
+(reference/pyseer/pyseer/__main__.py:488-513) and value formatting
+(reference/pyseer/pyseer/utils.py:39-105), traced against the *exact* flags
+the user's pipeline passes (`--lmm --min-af 0.05 --max-af 0.95 --cpu N`, with
+no `--lineage`, `--print-samples`, or `--wg`):
+
+    variant  af  filter-pvalue  lrt-pvalue  beta  beta-std-err  variant_h2  notes
+
+That header-construction logic only appends `lineage` when `--lineage` (or
+`--wg`+`--sequence-reweighting`+`--lineage-clusters`) is passed, and only
+appends `k-samples`/`nk-samples` when `--print-samples` is passed -- neither
+applies here, so those columns do not exist in the real output.
+
+The permutation identity is *not* a data column at all: the pipeline's bash
+loop names each output file after its phenotype file
+(`base=$(basename "$pheno" .tsv)` -> `${base}.txt`, e.g. `perm_0001.txt`).
+`storage.db.connect` already extracts this as `source_file` from the Parquet
+filename, so no placeholder/bookkeeping column is needed in the schema.
+
+Note pyseer formats numeric fields as scientific-notation strings ('%.2E') or
+empty string when non-finite -- the txt reader/writer must treat empty strings
+as null when casting to float.
 """
 
 import pyarrow as pa
 
-# Confirmed columns (name, arrow type, description)
-CONFIRMED_COLUMNS = [
-    ("variant", pa.string(), "DNA sequence string identifying the variant under test"),
-    ("filter_pvalue", pa.float32(), "p-value from the pre-filtering association test"),
-    ("lct_pvalue", pa.float32(), "p-value from the LCT-locus association test"),
-    ("beta", pa.float32(), "estimated effect size of the variant on the trait"),
-    ("beta_std_err", pa.float32(), "standard error of the beta estimate"),
-    ("variant_h2", pa.float32(), "heritability contribution attributed to the variant"),
-    ("notes", pa.string(), "free-text annotation, mostly empty"),
+# `lct_pvalue` in the user's original description was a mishearing of
+# `lrt-pvalue` (likelihood ratio test) -- pyseer's actual column name.
+ALL_COLUMNS = [
+    ("variant", pa.string(),
+     "k-mer DNA sequence string (or VCF/Rtab variant ID, depending on input type) under test"),
+    ("af", pa.float32(),
+     "allele frequency of the variant"),
+    ("filter_pvalue", pa.float32(),
+     "p-value from the pre-filtering association test"),
+    ("lrt_pvalue", pa.float32(),
+     "likelihood-ratio-test p-value from the full association model"),
+    ("beta", pa.float32(),
+     "estimated effect size of the variant on the trait"),
+    ("beta_std_err", pa.float32(),
+     "standard error of the beta estimate"),
+    ("variant_h2", pa.float32(),
+     "fraction of model heritability (h2) explained by the variant (LMM mode)"),
+    ("notes", pa.string(),
+     "comma-separated flags from a fixed vocabulary, e.g. af-filter, bad-chisq, "
+     "pre-filtering-failed, high-bse, perfectly-separable-data, matrix-inversion-error, "
+     "firth-fail, missing-data-error, lrt-filtering-failed -- mostly empty"),
 ]
 
-# Placeholder columns -- replace with real name/type/description once confirmed.
-# Guesses below follow common GWAS permutation output conventions.
-PLACEHOLDER_COLUMNS = [
-    ("placeholder_perm_index", pa.int32(), "TBD: index of the permutation run"),
-    ("placeholder_chromosome", pa.int16(), "TBD: chromosome number"),
-    ("placeholder_position", pa.int64(), "TBD: base-pair position on the chromosome"),
-    ("placeholder_sample_size", pa.int32(), "TBD: number of samples used in the test"),
-    ("placeholder_maf", pa.float32(), "TBD: minor allele frequency"),
-]
-
-ALL_COLUMNS = CONFIRMED_COLUMNS + PLACEHOLDER_COLUMNS
-
-assert len(ALL_COLUMNS) == 12, "Schema must have exactly 12 columns"
+assert len(ALL_COLUMNS) == 8, "Schema must have exactly 8 columns"
 
 ARROW_SCHEMA = pa.schema([(name, dtype) for name, dtype, _ in ALL_COLUMNS])
 
