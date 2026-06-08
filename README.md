@@ -44,12 +44,8 @@ write_normalized(Path('data/run_fixed'), Path('data/parquet/permutations'))
 
 # 2b. If variants differ per file, use write_inline instead (same call shape).
 
-# 3. Ask the analyst questions (needs ANTHROPIC_API_KEY)
-export ANTHROPIC_API_KEY=sk-...
-.venv/bin/python scripts/ask.py data/parquet/permutations \
-    --reference data/parquet/reference/variants.parquet \
-    "What does the empirical null distribution of lct_pvalue look like, and which variants stand out?"
-```
+# 3. Ask the analyst questions
+
 
 ## Storage approach
 
